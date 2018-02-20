@@ -6,7 +6,11 @@ import ai.grakn.GraknTx;
 import ai.grakn.GraknTxType;
 import ai.grakn.concept.Concept;
 import ai.grakn.graql.admin.Answer;
+import ai.grakn.kb.internal.GraknTxTinker;
+import org.apache.commons.lang3.reflect.FieldUtils;
+import org.apache.tinkerpop.gremlin.tinkergraph.structure.TinkerGraph;
 
+import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.stream.Stream;
 
@@ -21,36 +25,47 @@ public class Main {
             tx.commit();
         }
 
-        try (GraknTx tx = session.open(GraknTxType.READ)) {
-            Stream<Answer> thing = tx.graql().match(var("x").isa("thing")).get().stream();
-            thing.map(e -> {
-                Concept c = e.get("x");
-                String typeOf;
-                if (c.isType()) {
-                    typeOf = "[" + c.asType().getLabel().getValue() + "/" + c.asType().getLabelId().getValue() + "]";
-                }
-                else if (c.isEntity()) {
-                    typeOf = "[" + c.asEntity().type().getLabel().getValue() + "/" + c.asEntity().type().getLabelId().getValue() + "]";
-                }
-                else if (c.isAttribute()) {
-                    typeOf = "[" + c.asAttribute().type().getLabel().getValue() + "/" + c.asAttribute().type().getLabelId().getValue() + "]";
-                }
-                else if (c.isRelationship()) {
-                    typeOf = "[" + c.asRelationship().type().getLabel().getValue() + "/" + c.asRelationship().type().getLabelId().getValue() + "]";
-                }
-                else if (c.isRole()) {
-                    typeOf = "[" + c.asRole().getLabel().getValue() + "/" + c.asRole().getLabelId().getValue() + "]";
-                }
-                else if (c.isRule()) {
-                    typeOf = "[" + c.asRule().getLabel().getValue() + "/" + c.asRule().getLabelId().getValue() + "]";
-                }
-                else {
-                    throw new RuntimeException();
-                }
-                return new HashMap.SimpleImmutableEntry<>(typeOf, c.getId().getValue());
-            }).forEach(System.out::println);
-        }
+//        try (GraknTx tx = session.open(GraknTxType.READ)) {
+//            Stream<Answer> thing = tx.graql().match(var("x").isa("thing")).get().stream();
+//            thing.map(e -> {
+//                Concept c = e.get("x");
+//                String typeOf;
+//                if (c.isType()) {
+//                    typeOf = "[" + c.asType().getLabel().getValue() + "/" + c.asType().getLabelId().getValue() + "]";
+//                }
+//                else if (c.isEntity()) {
+//                    typeOf = "[" + c.asEntity().type().getLabel().getValue() + "/" + c.asEntity().type().getLabelId().getValue() + "]";
+//                }
+//                else if (c.isAttribute()) {
+//                    typeOf = "[" + c.asAttribute().type().getLabel().getValue() + "/" + c.asAttribute().type().getLabelId().getValue() + "]";
+//                }
+//                else if (c.isRelationship()) {
+//                    typeOf = "[" + c.asRelationship().type().getLabel().getValue() + "/" + c.asRelationship().type().getLabelId().getValue() + "]";
+//                }
+//                else if (c.isRole()) {
+//                    typeOf = "[" + c.asRole().getLabel().getValue() + "/" + c.asRole().getLabelId().getValue() + "]";
+//                }
+//                else if (c.isRule()) {
+//                    typeOf = "[" + c.asRule().getLabel().getValue() + "/" + c.asRule().getLabelId().getValue() + "]";
+//                }
+//                else {
+//                    throw new RuntimeException();
+//                }
+//                return new HashMap.SimpleImmutableEntry<>(typeOf, c.getId().getValue());
+//            }).forEach(System.out::println);
+//        }
 
+        TinkerGraph tinkerGraph = getTinkerGraph(session);
         System.out.println(); // ((GraknTxTinker) ((GraknSessionImpl) session).tx).rootGraph.vertices
+    }
+
+    public static TinkerGraph getTinkerGraph(GraknSession session) {
+        try {
+            GraknTxTinker tx = (GraknTxTinker) FieldUtils.readField(session, "tx", true);
+            TinkerGraph t = (TinkerGraph) FieldUtils.readField(tx, "rootGraph", true);
+            return t;
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException(e);
+        }
     }
 }
